@@ -4,87 +4,228 @@
  * Module dependencies.
  */
 
-var app = require('../app');
-var debug = require('debug')('iot-server:server');
-var http = require('http');
+ var app = require('../app');
+ var debug = require('debug')('iot-practice:server');
+ var http = require('http');
+ /**
+  * Get port from environment and store in Express.
+  */
+ 
+ var port = normalizePort(process.env.PORT || '3000');
+ app.set('port', port);
+ 
+ /**
+  * Create HTTP server.
+  */
+ 
+ var server = http.createServer(app);
+ 
+ //connect to MongoDB
+ var mongoDB = require("mongodb").MongoClient;
+ var url = "mongodb://localhost:27017";
+ var db_obj = null;
+ mongoDB.connect(url, function(err, db){
+   db_obj = db;
+   console.log("MongoDB Connect")
+ });
+ 
+ 
+ 
+ /**
+  * Create MQTT client
+  */
+ 
+ var mqtt = require('mqtt');
+ var mqtt_client = mqtt.connect("mqtt://127.0.0.1:1883");
+ mqtt_client.on("connect",function(){
+  mqtt_client.subscribe("sun");
+  console.log("Subscrbinf sun");
+  mqtt_client.subscribe("powerGeneration");
+  console.log("Subscrbinf powerGeneration");
+});
 
-/**
- * Get port from environment and store in Express.
- */
+//  mqtt_client.on("message", function(topic,message){
+//    var obj = JSON.parse(message);
+//    obj.creat_at = new Date();
+//    //console.log(topic+":"+message.toString());
+//    if (topic == "sun"){
+//     var coursor = db_obj.db("Resources").collection("Sun");
+//     coursor.insertOne(obj, function(err, result){
+//       if(err)
+//         console.log(err);
+//       else{
+//         console.log(JSON.stringify(result));
+//         console.log("Published Sun",obj);
+//         mqtt_client.publish("publishSun",message);
+//       }
+        
+//     });
+//    }
+//    else if (topic == "powerGeneration"){
+//     var coursor = db_obj.db("Resources").collection("createdVoltage");
+//     var checkPannelId = db_obj.db("Resources").collection("SolarPannel").find({pannelID : obj.pannelID}).toArray(function(err, result){
+//       if (err){
+//         console.log(err);
+//       }else{
+//         if (result.length == 0){
+//           var parseId = JSON.parse("{\"pannelID\" : \""+obj.pannelID+"\"}");
+//           db_obj.db("Resources").collection("SolarPannel").insertOne(parseId, function(err, result){
+//             if (err){
+//               console.log(err);
+//             }else{
+//               console.log(result);
+//               console.log("Add new SolarPannel");
+//             }
+//           });
+//         }else{
+//           var a = "{\"pannelID\" : \""+obj.pannelID+"\","+"\"power\" : "+obj.power+", \"angle\" : "+obj.angle+"}";
+//           console.log("SEND DATA : "+a);
+//         }
+//       }
+//     });
+//     //발전량 도착시 도착 데이터를 웹으로 보냄.
+//   }
+//  });
 
-var port = normalizePort(process.env.PORT || '3000');
-app.set('port', port);
 
-/**
- * Create HTTP server.
- */
+ //Socket Commnucation with HTML pages
+ var io = require("socket.io")(server);
+ io.on("connection",function(socket){
+  console.log("connect socket")
+  mqtt_client.on("message", function(topic,message){
+    console.log(topic+":"+message.toString());
+    var obj = JSON.parse(message);
+    obj.creat_at = new Date();
+    if (topic == "sun"){
+     var coursor = db_obj.db("Resources").collection("Sun");
+     coursor.insertOne(obj, function(err, result){
+       if(err)
+         console.log(err);
+       else{
+         console.log(JSON.stringify(result));
+         console.log("Published Sun",obj);
+         mqtt_client.publish("publishSun",message);
+       }
+         
+     });
+    }
+    else if (topic == "powerGeneration"){
+     var coursor = db_obj.db("Resources").collection("createdVoltage");
+     var checkPannelId = db_obj.db("Resources").collection("SolarPannel").find({pannelID : obj.pannelID}).toArray(function(err, result){
+       if (err){
+         console.log(err);
+       }else{
+         if (result.length == 0){
+           var parseId = JSON.parse("{\"pannelID\" : \""+obj.pannelID+"\"}");
+           parseId.creat_at = new Date();
+           db_obj.db("Resources").collection("SolarPannel").insertOne(parseId, function(err, result){
+             if (err){
+               console.log(err);
+             }else{
+               console.log(result);
+               console.log("Add new SolarPannel");
+             }
+           });
+         }else{
+           var a = "{\"pannelID\" : \""+obj.pannelID+"\","+"\"power\" : "+obj.power+", \"angle\" : "+obj.angle+"}";
+           socket.emit("evt_powerGeneration_s2c",a);
+         }
+       }
+     });
+   }
+  });
 
-var server = http.createServer(app);
-
-/**
- * Listen on provided port, on all network interfaces.
- */
-
-server.listen(port);
-server.on('error', onError);
-server.on('listening', onListening);
-
-/**
- * Normalize a port into a number, string, or false.
- */
-
-function normalizePort(val) {
-  var port = parseInt(val, 10);
-
-  if (isNaN(port)) {
-    // named pipe
-    return val;
-  }
-
-  if (port >= 0) {
-    // port number
-    return port;
-  }
-
-  return false;
-}
-
-/**
- * Event listener for HTTP server "error" event.
- */
-
-function onError(error) {
-  if (error.syscall !== 'listen') {
-    throw error;
-  }
-
-  var bind = typeof port === 'string'
-    ? 'Pipe ' + port
-    : 'Port ' + port;
-
-  // handle specific listen errors with friendly messages
-  switch (error.code) {
-    case 'EACCES':
-      console.error(bind + ' requires elevated privileges');
-      process.exit(1);
-      break;
-    case 'EADDRINUSE':
-      console.error(bind + ' is already in use');
-      process.exit(1);
-      break;
-    default:
-      throw error;
-  }
-}
-
-/**
- * Event listener for HTTP server "listening" event.
- */
-
-function onListening() {
-  var addr = server.address();
-  var bind = typeof addr === 'string'
-    ? 'pipe ' + addr
-    : 'port ' + addr.port;
-  debug('Listening on ' + bind);
-}
+   socket.on("evt_temp_c2s", function(data){
+     var coursor = db_obj.db("Resources").collection("SolarPannel");
+     const options = {
+       sort : {"_id": 1},
+       projection : {_id: 0, pannelID : 1},
+     };
+ 
+   var data = coursor.find({},options)
+   data.toArray(function(err, results){
+     if(!err){
+       socket.emit("evt_temp_s2c", results);
+     }
+   });
+   });
+//    socket.on('end', function (){
+//     mqtt_client.end();
+//     mqtt_client = mqtt.connect("mqtt://127.0.0.1:1883");
+//     mqtt_client.on("connect",function(){
+//       mqtt_client.subscribe("sun");
+//       console.log("Subscrbinf sun");
+//       mqtt_client.subscribe("powerGeneration");
+//       console.log("Subscrbinf powerGeneration");
+//     });
+//     getMqttClient();
+// });
+ });
+ 
+ /**
+  * Listen on provided port, on all network interfaces.
+  */
+ 
+ server.listen(port);
+ server.on('error', onError);
+ server.on('listening', onListening);
+ 
+ /**
+  * Normalize a port into a number, string, or false.
+  */
+ 
+ function normalizePort(val) {
+   var port = parseInt(val, 10);
+ 
+   if (isNaN(port)) {
+     // named pipe
+     return val;
+   }
+ 
+   if (port >= 0) {
+     // port number
+     return port;
+   }
+ 
+   return false;
+ }
+ 
+ /**
+  * Event listener for HTTP server "error" event.
+  */
+ 
+ function onError(error) {
+   if (error.syscall !== 'listen') {
+     throw error;
+   }
+ 
+   var bind = typeof port === 'string'
+     ? 'Pipe ' + port
+     : 'Port ' + port;
+ 
+   // handle specific listen errors with friendly messages
+   switch (error.code) {
+     case 'EACCES':
+       console.error(bind + ' requires elevated privileges');
+       process.exit(1);
+       break;
+     case 'EADDRINUSE':
+       console.error(bind + ' is already in use');
+       process.exit(1);
+       break;
+     default:
+       throw error;
+   }
+ }
+ 
+ /**
+  * Event listener for HTTP server "listening" event.
+  */
+ 
+ function onListening() {
+   var addr = server.address();
+   var bind = typeof addr === 'string'
+     ? 'pipe ' + addr
+     : 'port ' + addr.port;
+   debug('Listening on ' + bind);
+ }

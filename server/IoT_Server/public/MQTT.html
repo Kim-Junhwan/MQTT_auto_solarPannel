@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MQTT Monitoring Service</title>
+    <script src = "/socket.io/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+    <style>
+        .pannelBoard{
+            display: inline-block;
+        }
+    </style>
+    <script>
+        var socket = io.connect();
+        var timer = null;
+        var counter = 0;
+        var dataNum = 0;
+        $(document).ready(function(){
+            socket.on("evt_temp_s2c",function(data){
+                if(counter == 0){
+                    for(i=0;i<data.length;i++){
+                        createDiv(data[i].pannelID, "0","0");
+                    }
+                    dataNum = data.length;
+                    counter += 1;
+                }
+
+                if(dataNum != data.length){
+                    alert("새로운 태양광 발전기 발견");
+                    socket.emit('end');
+                    window.location.reload();
+                }
+            });
+            socket.on("evt_powerGeneration_s2c",function(data){
+                console.log("power :"+data);
+                var obj = JSON.parse(data)
+                $("."+obj.pannelID).html('발전량 : '+obj.power+'kW <br>'+'각도 : '+obj.angle+'C');
+            });
+            if(timer==null){
+                timer = window.setInterval("timer1()",2000);
+            }
+        });
+        function timer1(){
+            socket.emit("evt_temp_c2s",JSON.stringify({}));
+        }
+
+        function createDiv(pannelId, voltage, angle) {
+  
+  const newDiv = document.createElement('div');
+  newDiv.className = pannelId+"div";
+  newDiv.style.display = 'inline-block';
+  const newFieldset = document.createElement('fieldset');
+  const newLegend = document.createElement('legend');
+  const newText = document.createTextNode('발전량 : '+voltage+'kW');
+  const p = document.createElement('p');
+  p.className = pannelId;
+  const br = document.createElement('br');
+  const calc = document.createTextNode('각도 : '+angle+'C');
+  const pannel = document.createTextNode(pannelId);
+  newDiv.appendChild(newFieldset);
+  newFieldset.appendChild(newLegend);
+  newLegend.appendChild(pannel);
+  newFieldset.appendChild(p);
+  p.appendChild(newText);
+  p.appendChild(br);
+  p.appendChild(calc);
+  document.body.appendChild(newDiv);
+} 
+
+function end(){
+    socket.emit('end');
+}
+
+window.addEventListener('beforeunload', (event) => {
+    socket.emit('end');
+});
+    </script>
+</head>
+<body>
+    태양열 발전기 모니터링
+</body>
+</html>

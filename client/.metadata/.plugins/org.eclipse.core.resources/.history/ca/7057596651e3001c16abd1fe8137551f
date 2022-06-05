@@ -1,0 +1,125 @@
+package main;
+
+import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
+import org.eclipse.paho.client.mqttv3.MqttCallback;
+import org.eclipse.paho.client.mqttv3.MqttClient;
+import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
+import org.eclipse.paho.client.mqttv3.MqttException;
+import org.eclipse.paho.client.mqttv3.MqttMessage;
+import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+
+public class SolarPannel implements MqttCallback{ // implement callback 추가 & 필요한 메소드 정의
+	static MqttClient sampleClient;// Mqtt Client 객체 선언
+    public static void main(String[] args) {
+    	SolarPannel obj = new SolarPannel();
+    	obj.run();
+    }
+    public void run() {    	
+    	connectBroker(); // 브로커 서버에 접속
+    	try { // 여기 추가
+    		sampleClient.subscribe("publishSun"); // sun 리소스 구독
+		} catch (MqttException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+    	while(true) {
+    		try {
+    	       	Thread.sleep(5000); // @@@@@@
+    		}catch (Exception e) {
+				// TODO: handle exception
+    			try {
+    				sampleClient.disconnect();
+				} catch (MqttException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+    			e.printStackTrace();
+    	        System.out.println("Disconnected");
+    	        System.exit(0);
+			}
+    	}
+    }
+    
+    public void connectBroker() {
+        String broker = "tcp://127.0.0.1:1883"; // 브로커 서버의 주소 
+        String clientId = "solarPannel"; // 클라이언트의 ID
+        MemoryPersistence persistence = new MemoryPersistence();
+        try {
+            sampleClient = new MqttClient(broker, clientId, persistence);// Mqtt Client 객체 초기화
+            MqttConnectOptions connOpts = new MqttConnectOptions(); // 접속시 접속의 옵션을 정의하는 객체 생성
+            connOpts.setCleanSession(true);
+            System.out.println("Connecting to broker: "+broker);
+            sampleClient.connect(connOpts); // 브로커서버에 접속
+            sampleClient.setCallback(this);// Call back option 추가
+            System.out.println("Connected");
+        } catch(MqttException me) {
+            System.out.println("reason "+me.getReasonCode());
+            System.out.println("msg "+me.getMessage());
+            System.out.println("loc "+me.getLocalizedMessage());
+            System.out.println("cause "+me.getCause());
+            System.out.println("excep "+me);
+            me.printStackTrace();
+        }
+    }
+    
+    public void publish_data(String topic_input, String data) { // @@@@@ 스태틱 제거
+        String topic = topic_input; // 토픽
+        int qos = 0; // QoS level
+        try {
+            System.out.println("Publishing message: "+data);
+            sampleClient.publish(topic, data.getBytes(), qos, false);
+            System.out.println("Message published");
+        } catch(MqttException me) {
+            System.out.println("reason "+me.getReasonCode());
+            System.out.println("msg "+me.getMessage());
+            System.out.println("loc "+me.getLocalizedMessage());
+            System.out.println("cause "+me.getCause());
+            System.out.println("excep "+me);
+            me.printStackTrace();
+        }
+    }
+    
+	@Override
+	public void connectionLost(Throwable arg0) {
+		// TODO Auto-generated method stub
+		System.out.println("Connection lost");
+	}
+
+	@Override
+	public void deliveryComplete(IMqttDeliveryToken arg0) {
+		// TODO Auto-generated method stub
+	}
+
+	@Override
+	public void messageArrived(String topic, MqttMessage msg) throws Exception {
+		// TODO Auto-generated method stub
+		if (topic.equals("publishSun")){
+			System.out.println("--------------------Actuator Function--------------------");
+			System.out.println("get sun info");
+			System.out.println("sun: " + msg.toString());
+			System.out.println("---------------------------------------------------------");
+			//데이터 받으면 각도 수정
+//			JSONParser parser = new JSONParser();
+//			JSONObject obj = (JSONObject)parser.parse(msg.toString());
+//			System.out.println((String)obj.get("azimuth"));
+//			System.out.println((String)obj.get("altitude"));
+//			JSONObject jsonmsg = new JSONObject(new String(msg.getPayload());
+			JSONObject obj = new JSONOnject(new String(msg.getPayload()));
+			System.out.println();
+		}		
+	}
+	
+	public void calcPannelAngle() {
+		
+	}
+}

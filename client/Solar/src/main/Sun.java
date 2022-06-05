@@ -27,7 +27,6 @@ public class Sun implements MqttCallback{ // implement callback �߰� & �ʿ
 	
     public static void main(String[] args) {
     	Sun obj = new Sun();
-    	obj.getSun();
     	obj.run();
     }
     public void run() {    	
@@ -41,8 +40,7 @@ public class Sun implements MqttCallback{ // implement callback �߰� & �ʿ
     	while(true) {
     		try {
     			String[] sun = getSun();
-    	       	publish_data("azimuth", "{\"azimuth\": "+sun[0]+"}"); // �µ� ������ ����
-    	       	publish_data("altitude", "{\"altitude\": "+sun[1]+"}");
+    	       	publish_data("sun", "{\"azimuth\": "+sun[0] +", \"altitude\": "+sun[1]+"}");
     	       	Thread.sleep(5000); // @@@@@@
     		}catch (Exception e) {
 				// TODO: handle exception
@@ -104,7 +102,7 @@ public class Sun implements MqttCallback{ // implement callback �߰� & �ʿ
     
     public void connectBroker() {
         String broker = "tcp://127.0.0.1:1883"; // ���Ŀ ������ �ּ� 
-        String clientId = "practice"; // Ŭ���̾�Ʈ�� ID
+        String clientId = "sun"; // Ŭ���̾�Ʈ�� ID
         MemoryPersistence persistence = new MemoryPersistence();
         try {
             sampleClient = new MqttClient(broker, clientId, persistence);// Mqtt Client ��ü �ʱ�ȭ
