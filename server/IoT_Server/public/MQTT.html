@@ -18,7 +18,7 @@
         var counter = 0;
         var dataNum = 0;
         $(document).ready(function(){
-            socket.on("evt_temp_s2c",function(data){
+            socket.on("evt_get_pannelData",function(data){
                 if(counter == 0){
                     for(i=0;i<data.length;i++){
                         createDiv(data[i].pannelID, "0","0");
@@ -29,7 +29,6 @@
 
                 if(dataNum != data.length){
                     alert("새로운 태양광 발전기 발견");
-                    socket.emit('end');
                     window.location.reload();
                 }
             });
@@ -43,7 +42,7 @@
             }
         });
         function timer1(){
-            socket.emit("evt_temp_c2s",JSON.stringify({}));
+            socket.emit("evt_get_pannelData",JSON.stringify({}));
         }
 
         function createDiv(pannelId, voltage, angle) {
@@ -69,16 +68,9 @@
   document.body.appendChild(newDiv);
 } 
 
-function end(){
-    socket.emit('end');
-}
-
-window.addEventListener('beforeunload', (event) => {
-    socket.emit('end');
-});
     </script>
 </head>
 <body>
-    태양열 발전기 모니터링
+    태양열 발전기 모니터링<br>
 </body>
 </html>

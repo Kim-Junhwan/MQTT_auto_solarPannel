@@ -20,7 +20,6 @@
  
  var server = http.createServer(app);
  
- //connect to MongoDB
  var mongoDB = require("mongodb").MongoClient;
  var url = "mongodb://localhost:27017";
  var db_obj = null;
@@ -28,12 +27,6 @@
    db_obj = db;
    console.log("MongoDB Connect")
  });
- 
- 
- 
- /**
-  * Create MQTT client
-  */
  
  var mqtt = require('mqtt');
  var mqtt_client = mqtt.connect("mqtt://127.0.0.1:1883");
@@ -44,51 +37,6 @@
   console.log("Subscrbinf powerGeneration");
 });
 
-//  mqtt_client.on("message", function(topic,message){
-//    var obj = JSON.parse(message);
-//    obj.creat_at = new Date();
-//    //console.log(topic+":"+message.toString());
-//    if (topic == "sun"){
-//     var coursor = db_obj.db("Resources").collection("Sun");
-//     coursor.insertOne(obj, function(err, result){
-//       if(err)
-//         console.log(err);
-//       else{
-//         console.log(JSON.stringify(result));
-//         console.log("Published Sun",obj);
-//         mqtt_client.publish("publishSun",message);
-//       }
-        
-//     });
-//    }
-//    else if (topic == "powerGeneration"){
-//     var coursor = db_obj.db("Resources").collection("createdVoltage");
-//     var checkPannelId = db_obj.db("Resources").collection("SolarPannel").find({pannelID : obj.pannelID}).toArray(function(err, result){
-//       if (err){
-//         console.log(err);
-//       }else{
-//         if (result.length == 0){
-//           var parseId = JSON.parse("{\"pannelID\" : \""+obj.pannelID+"\"}");
-//           db_obj.db("Resources").collection("SolarPannel").insertOne(parseId, function(err, result){
-//             if (err){
-//               console.log(err);
-//             }else{
-//               console.log(result);
-//               console.log("Add new SolarPannel");
-//             }
-//           });
-//         }else{
-//           var a = "{\"pannelID\" : \""+obj.pannelID+"\","+"\"power\" : "+obj.power+", \"angle\" : "+obj.angle+"}";
-//           console.log("SEND DATA : "+a);
-//         }
-//       }
-//     });
-//     //발전량 도착시 도착 데이터를 웹으로 보냄.
-//   }
-//  });
-
-
- //Socket Commnucation with HTML pages
  var io = require("socket.io")(server);
  io.on("connection",function(socket){
   console.log("connect socket")
@@ -102,12 +50,31 @@
        if(err)
          console.log(err);
        else{
-         console.log(JSON.stringify(result));
-         console.log("Published Sun",obj);
          mqtt_client.publish("publishSun",message);
        }
-         
      });
+
+    //  const options = {
+    //   sort : {"_id": 1},
+    //   projection : {_id : 0, azimuth : 1, altitude : 1, lat : 1, lon : 1, creat_at : 0},
+    // };
+    //  var data = coursor.find({},options).limit(1);
+    //  data.toArray(function(err, results){
+    //   console.log("result " + results);
+    // })
+    // console.log("mongodb data : "+JSON.stringify(data));
+    // console.log("message : "+message)
+
+    var incoursor = db_obj.db("Resources").collection("Sun");
+    const options = {
+      sort : {"_id": -1},
+      projection : {_id: 0, creat_at : 0},
+    };
+
+  var data = incoursor.find({},options).limit(1)
+  data.toArray(function(err, result){
+    console.log(JSON.stringify(result[0]));
+  });
     }
     else if (topic == "powerGeneration"){
      var coursor = db_obj.db("Resources").collection("createdVoltage");
@@ -128,6 +95,7 @@
            });
          }else{
            var a = "{\"pannelID\" : \""+obj.pannelID+"\","+"\"power\" : "+obj.power+", \"angle\" : "+obj.angle+"}";
+           console.log(a);
            socket.emit("evt_powerGeneration_s2c",a);
          }
        }
@@ -135,7 +103,7 @@
    }
   });
 
-   socket.on("evt_temp_c2s", function(data){
+   socket.on("evt_get_pannelData", function(data){
      var coursor = db_obj.db("Resources").collection("SolarPannel");
      const options = {
        sort : {"_id": 1},
@@ -145,21 +113,19 @@
    var data = coursor.find({},options)
    data.toArray(function(err, results){
      if(!err){
-       socket.emit("evt_temp_s2c", results);
+       var asdf = [];
+       for(i=0;i<results.length;i++){
+         if(!asdf.includes(results[i].pannelID)){
+           asdf.push(results[i].pannelID);
+         }else{
+           results.splice(i,1);
+           i--;
+         }
+       }
+       socket.emit("evt_get_pannelData", results);
      }
    });
    });
-//    socket.on('end', function (){
-//     mqtt_client.end();
-//     mqtt_client = mqtt.connect("mqtt://127.0.0.1:1883");
-//     mqtt_client.on("connect",function(){
-//       mqtt_client.subscribe("sun");
-//       console.log("Subscrbinf sun");
-//       mqtt_client.subscribe("powerGeneration");
-//       console.log("Subscrbinf powerGeneration");
-//     });
-//     getMqttClient();
-// });
  });
  
  /**

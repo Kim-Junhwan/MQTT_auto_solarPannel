@@ -20,32 +20,29 @@ import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 
-public class Sun implements MqttCallback{ // implement callback �߰� & �ʿ��� �޼ҵ� ����
-	static MqttClient sampleClient;// Mqtt Client ��ü ����
+public class Sun implements MqttCallback{ 
+	static MqttClient mqttClient;
 	private static final String WEB_DRIVER_ID = "webdriver.chrome.driver";
-	private static final String WEB_DRIVER_PATH = "/Users/junhwankim/Desktop/IOT_MQTT_PROJECT/chromedriver";
+	private static final String WEB_DRIVER_PATH = "/Users/junhwankim/Desktop/IOT 프로젝트 파일/IOT_MQTT_PROJECT/chromedriver";
+	//태양 위치 조회 센서 좌표
+	Double lat = 37.8669112;
+	Double lon = 127.737210;
 	
     public static void main(String[] args) {
     	Sun obj = new Sun();
     	obj.run();
     }
     public void run() {    	
-    	connectBroker(); // ���Ŀ ������ ����
-    	try { // ���� �߰�
-    		sampleClient.subscribe("led"); // LED ���ҽ� ����
-		} catch (MqttException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
+    	connectBroker(); 
     	while(true) {
     		try {
     			String[] sun = getSun();
-    	       	publish_data("sun", "{\"azimuth\": "+sun[0] +", \"altitude\": "+sun[1]+"}");
-    	       	Thread.sleep(5000); // @@@@@@
+    	       	publish_data("sun", "{\"azimuth\": "+sun[0] +", \"altitude\": "+sun[1]+", \"lat\": "+lat+", \"lon\": "+lon+"}");
+    	       	Thread.sleep(1000); 
     		}catch (Exception e) {
 				// TODO: handle exception
     			try {
-    				sampleClient.disconnect();
+    				mqttClient.disconnect();
 				} catch (MqttException e1) {
 					// TODO Auto-generated catch block
 					e1.printStackTrace();
@@ -57,18 +54,14 @@ public class Sun implements MqttCallback{ // implement callback �߰� & �ʿ
     	}
     }
     
-    //start ****************************************************************************************
-    //
     public String[] getSun() {
-    	Double lat = 37.541;
-    	Double lon = 126.986;
     	Date current = new Date(System.currentTimeMillis());
     	SimpleDateFormat d_format = new SimpleDateFormat("yyyyMMddHHmm");
-    	String date = d_format.format(current).substring(0,4)+"."+d_format.format(current).substring(4,6)+"."+d_format.format(current).substring(6,8); // ��¥
-    	String time = d_format.format(current).substring(8,10)+":"+d_format.format(current).substring(10,12); // �ð�
+    	String date = d_format.format(current).substring(0,4)+"."+d_format.format(current)
+    	.substring(4,6)+"."+d_format.format(current).substring(6,8); 
+    	String time = d_format.format(current).substring(8,10)+":"+d_format.format(current).substring(10,12); 
     	String url = "https://suncalc.org/#/"+lat+","+lon+",17"+"/"+date+"/"+time+"/324.0/2";
     	System.out.println(url);
-    	Document doc = null;
     	//셀레니엄으로 웹크롤링
     	try {
     		System.setProperty(WEB_DRIVER_ID, WEB_DRIVER_PATH);
@@ -80,7 +73,7 @@ public class Sun implements MqttCallback{ // implement callback �߰� & �ʿ
     	WebDriver driver = new ChromeDriver(options);
     	driver.get(url);
     	try {
-			Thread.sleep(2000);
+			Thread.sleep(1000);
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -98,19 +91,18 @@ public class Sun implements MqttCallback{ // implement callback �߰� & �ʿ
     	return sun;
     }
     
-    //****************************************************************************************
     
     public void connectBroker() {
-        String broker = "tcp://127.0.0.1:1883"; // ���Ŀ ������ �ּ� 
-        String clientId = "sun"; // Ŭ���̾�Ʈ�� ID
+        String broker = "tcp://127.0.0.1:1883";
+        String clientId = "sun"; 
         MemoryPersistence persistence = new MemoryPersistence();
         try {
-            sampleClient = new MqttClient(broker, clientId, persistence);// Mqtt Client ��ü �ʱ�ȭ
-            MqttConnectOptions connOpts = new MqttConnectOptions(); // ���ӽ� ������ �ɼ��� �����ϴ� ��ü ����
+            mqttClient = new MqttClient(broker, clientId, persistence);
+            MqttConnectOptions connOpts = new MqttConnectOptions(); 
             connOpts.setCleanSession(true);
             System.out.println("Connecting to broker: "+broker);
-            sampleClient.connect(connOpts); // ���Ŀ������ ����
-            sampleClient.setCallback(this);// Call back option �߰�
+            mqttClient.connect(connOpts); 
+            mqttClient.setCallback(this);
             System.out.println("Connected");
         } catch(MqttException me) {
             System.out.println("reason "+me.getReasonCode());
@@ -122,12 +114,12 @@ public class Sun implements MqttCallback{ // implement callback �߰� & �ʿ
         }
     }
     
-    public void publish_data(String topic_input, String data) { // @@@@@ ����ƽ ����
-        String topic = topic_input; // ����
-        int qos = 0; // QoS level
+    public void publish_data(String topic_input, String data) {
+        String topic = topic_input; 
+        int qos = 0; 
         try {
             System.out.println("Publishing message: "+data);
-            sampleClient.publish(topic, data.getBytes(), qos, false);
+            mqttClient.publish(topic, data.getBytes(), qos, false);
             System.out.println("Message published");
         } catch(MqttException me) {
             System.out.println("reason "+me.getReasonCode());
@@ -138,7 +130,7 @@ public class Sun implements MqttCallback{ // implement callback �߰� & �ʿ
             me.printStackTrace();
         }
     }
-    ///@@@@@@@@@@@@@@@@@
+    
 	@Override
 	public void connectionLost(Throwable arg0) {
 		// TODO Auto-generated method stub
@@ -153,11 +145,5 @@ public class Sun implements MqttCallback{ // implement callback �߰� & �ʿ
 	@Override
 	public void messageArrived(String topic, MqttMessage msg) throws Exception {
 		// TODO Auto-generated method stub
-		if (topic.equals("led")){
-			System.out.println("--------------------Actuator Function--------------------");
-			System.out.println("LED Display changed");
-			System.out.println("LED: " + msg.toString());
-			System.out.println("---------------------------------------------------------");
-		}		
 	}
 }

@@ -18,33 +18,34 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-public class SolarPannel implements MqttCallback{ // implement callback 추가 & 필요한 메소드 정의
-	static MqttClient sampleClient;// Mqtt Client 객체 선언
-	String pannelID = "solarPannel2"; //태양광 발전기의 고유한 아이디
-	Double angle = 60.0; //패널 각도
+public class SolarPannel implements MqttCallback{ 
+	static MqttClient mqttClient;
+	String pannelID = "solarPannel4"; //태양광 발전기의 고유한 아이디
+	Double angle = 0.0; //패널 각도
 	Double powerGeneration = 0.0; //발전량
+	Double lat = 37.8666847; //발전기의 위도
+	Double lon = 127.737401; //발전기의 경도
     public static void main(String[] args) {
     	SolarPannel obj = new SolarPannel();
     	obj.run();
     }
     
     public void run() {    	
-    	connectBroker(); // 브로커 서버에 접속
-    	try { // 여기 추가
-    		sampleClient.subscribe("publishSun"); // sun 리소스 구독
+    	connectBroker(); 
+    	try { 
+    		mqttClient.subscribe("publishSun"); // sun 리소스 구독
 		} catch (MqttException e1) {
-			// TODO Auto-generated catch block
 			e1.printStackTrace();
 		}
     	while(true) {
     		try {
     			int power = getPowerGeneration();
     			publish_data("powerGeneration", "{"+"\"pannelID\": "+"\""+pannelID+"\""+", \"power\": "+power +", \"angle\" :"+angle+"}");
-    	       	Thread.sleep(2000); // @@@@@@
+    	       	Thread.sleep(1000); 
     		}catch (Exception e) {
 				// TODO: handle exception
     			try {
-    				sampleClient.disconnect();
+    				mqttClient.disconnect();
 				} catch (MqttException e1) {
 					// TODO Auto-generated catch block
 					e1.printStackTrace();
@@ -57,16 +58,16 @@ public class SolarPannel implements MqttCallback{ // implement callback 추가 &
     }
     
     public void connectBroker() {
-        String broker = "tcp://127.0.0.1:1883"; // 브로커 서버의 주소 
-        String clientId = pannelID; // 클라이언트의 ID
+        String broker = "tcp://127.0.0.1:1883"; 
+        String clientId = pannelID; 
         MemoryPersistence persistence = new MemoryPersistence();
         try {
-            sampleClient = new MqttClient(broker, clientId, persistence);// Mqtt Client 객체 초기화
-            MqttConnectOptions connOpts = new MqttConnectOptions(); // 접속시 접속의 옵션을 정의하는 객체 생성
+            mqttClient = new MqttClient(broker, clientId, persistence);
+            MqttConnectOptions connOpts = new MqttConnectOptions(); 
             connOpts.setCleanSession(true);
             System.out.println("Connecting to broker: "+broker);
-            sampleClient.connect(connOpts); // 브로커서버에 접속
-            sampleClient.setCallback(this);// Call back option 추가
+            mqttClient.connect(connOpts); 
+            mqttClient.setCallback(this);
             System.out.println("Connected");
         } catch(MqttException me) {
             System.out.println("reason "+me.getReasonCode());
@@ -78,12 +79,12 @@ public class SolarPannel implements MqttCallback{ // implement callback 추가 &
         }
     }
     
-    public void publish_data(String topic_input, String data) { // @@@@@ 스태틱 제거
-        String topic = topic_input; // 토픽
+    public void publish_data(String topic_input, String data) { 
+        String topic = topic_input; 
         int qos = 0; // QoS level
         try {
             System.out.println("Publishing message: "+data);
-            sampleClient.publish(topic, data.getBytes(), qos, false);
+            mqttClient.publish(topic, data.getBytes(), qos, false);
             System.out.println("Message published");
         } catch(MqttException me) {
             System.out.println("reason "+me.getReasonCode());
@@ -106,9 +107,27 @@ public class SolarPannel implements MqttCallback{ // implement callback 추가 &
 		// TODO Auto-generated method stub
 	}
 	
-	public void calcPannelAngle(Double azimuth, Double altitude) {
-		angle = azimuth;
+	//발전기 각도 조정 함수
+	public void calcPannelAngle(Double azimuth, Double altitude, Double sunLat, Double sunLon) {
+		//위치 조회한 센서까지의 거리 미터로 표시. 
+		Double theta = sunLon - lon;
+		Double dist = Math.sin(deg2rad(sunLat)) * Math.sin(deg2rad(lat))
+				+ Math.cos(deg2rad(sunLat)) * Math.cos(deg2rad(lat)) * Math.cos(deg2rad(theta));
+		dist = Math.acos(dist);
+		dist = rad2deg(dist);
+		dist = dist * 60 * 1.1515;
+		dist = dist * 1609.344;
+		angle = Math.round(((altitude-(dist/20))+90.0)*100)/100.0 ;
 	}
+	
+	// This function converts decimal degrees to radians
+    private static double deg2rad(double deg) {
+        return (deg * Math.PI / 180.0);
+    }
+    // This function converts radians to decimal degrees
+    private static double rad2deg(double rad) {
+        return (rad * 180 / Math.PI);
+    }
 	
 	//발전량은 랜덤으로
 	public int getPowerGeneration() {
@@ -130,9 +149,11 @@ public class SolarPannel implements MqttCallback{ // implement callback 추가 &
 			JSONObject jsonObject = (JSONObject) parser.parse(msg.toString());
 			Double azimuth = Double.parseDouble(jsonObject.get("azimuth").toString());
 			Double altitude = Double.parseDouble(jsonObject.get("altitude").toString());
+			Double sunSensorLat = Double.parseDouble(jsonObject.get("lat").toString());
+			Double sunSensorLon = Double.parseDouble(jsonObject.get("lon").toString());
 			System.out.println(azimuth);
 			System.out.println(altitude);
-			calcPannelAngle(azimuth, altitude);
+			calcPannelAngle(azimuth, altitude,sunSensorLat,sunSensorLon);
 		}		
 	}
 	

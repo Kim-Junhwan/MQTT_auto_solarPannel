@@ -4,7 +4,7 @@
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="lib" path="/Users/junhwankim/Downloads/IoT 네트워크 - Mini project (1)/mini_project 소스코드/jsoup-1.13.1.jar"/>
 	<classpathentry kind="lib" path="/Users/junhwankim/Downloads/IoT 네트워크 - Mini project (1)/mini_project 소스코드/org.eclipse.paho.client.mqttv3-1.2.0.jar"/>
-	<classpathentry kind="lib" path="/Users/junhwankim/Desktop/IOT_MQTT_PROJECT/selenium-server-4.2.1.jar"/>
-	<classpathentry kind="lib" path="/Users/junhwankim/Desktop/IOT_MQTT_PROJECT/json-simple-1.1.1.jar"/>
+	<classpathentry kind="lib" path="/Users/junhwankim/Desktop/IOT 프로젝트 파일/IOT_MQTT_PROJECT/json-simple-1.1.1.jar"/>
+	<classpathentry kind="lib" path="/Users/junhwankim/Desktop/IOT 프로젝트 파일/IOT_MQTT_PROJECT/selenium-server-4.2.1.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
